@@ -1,0 +1,1097 @@
+#include "pch.h"
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <vector> 
+#include <cctype>
+
+using namespace std;
+
+#define OUT(x) cout << x;
+#define COUT(x) cout<< x << endl;
+
+struct Address {
+	string Rua;
+	string Numero_Porta;
+	string Andar;
+	string ZIPCode;
+	string Localidade;
+};
+
+struct Agency {
+	string Nome;
+	int NIF;
+	Address Morada_Agencia;
+	string URL;
+	string Ficheiro_Clientes;
+	string Ficheiro_Pacotes;
+};
+
+struct Client {
+	string Nome;
+	int NIF;
+	int Agregado_Familiar;
+	Address Morada_Cliente;
+	vector <int> Pacotes_turisticos_adquiridos;
+};
+
+struct Date{
+	int Ano;
+	int Mes;
+	int Dia;
+} ;
+
+struct TravelPack {
+	int Identificador;
+	string Destinos;
+	Date Data_partida;
+	Date Data_chegada;
+	int Preco;
+	int Max_vendas;
+	int Restantes;
+};
+
+Address adress_spliter(string s)
+{
+	string delimiter = "/";
+	vector<string> data;
+	size_t pos = 0;
+	string token;
+	while ((pos = s.find(delimiter)) != string::npos)
+	{
+		token = s.substr(0, pos);
+
+		data.push_back(token);
+		s.erase(0, pos + delimiter.length());
+	}
+	data.push_back(s);
+	Address result = { data[0], data[1], data[2], data[3], data[4] };
+	return result;
+}
+
+string adress_compiler(Address z)
+{
+	string res;
+	res += z.Rua + " / ";
+	res += z.Numero_Porta + " / ";
+	res += z.Andar + " / ";
+	res += z.ZIPCode + " / ";
+	res += z.Localidade;
+	return res;
+}
+
+string packs_compiler(vector<int> v)
+{
+	string result;
+	for (size_t i = 0; i < v.size(); i++)
+	{
+		if (i == (v.size() - 1))
+			result += to_string(v.at(i));
+		else
+		{
+			result += to_string(v.at(i));
+			result += " ; ";
+		}
+	}
+	return result;
+}
+
+Date date_spliter(string s)
+{
+	Date result;
+	vector <int> components;
+	string element;
+	int ctr = 0;
+	s += "/";
+	while (s != "")
+	{
+		element = s.substr(0, s.find_first_of("/"));
+		s.erase(0, s.find_first_of("/") + 1);
+		components.push_back(stoi(element));
+	}
+	result.Ano = components.at(0);
+	result.Mes = components.at(1);
+	result.Dia = components.at(2);
+	return result;
+}
+
+string date_compiler(Date a)
+{
+	string result;
+	result += to_string(a.Ano) + "/";
+	result += to_string(a.Mes) + "/";
+	result += to_string(a.Dia);
+	return result;
+}
+
+vector <int> identifier_splitter(string identifiers)
+{
+	vector <int> numeros;
+	string item;
+	if (identifiers.find(";") == string::npos)
+	{
+		numeros.push_back(stoi(identifiers));
+		return numeros;
+	}
+	identifiers += ";";
+	string digits = "0123456789";
+	while (identifiers != "")
+	{
+		item = identifiers.substr(identifiers.find_first_of(digits), identifiers.find_first_of(";") - 1);
+		numeros.push_back(stoi(item));
+		identifiers.erase(0, identifiers.find_first_of(";") + 1);
+	}
+	return numeros;
+	
+}
+
+Agency read_agency()
+{
+	Agency result;
+	ifstream file_name;
+	string nif;
+	string adress;
+	file_name.open("agency.txt");
+	if (file_name.is_open())
+	{
+		std::getline(file_name, result.Nome);
+		std::getline(file_name, nif);
+		result.NIF = stoi(nif);
+		std::getline(file_name, result.URL);
+		std::getline(file_name, adress);
+		result.Morada_Agencia = adress_spliter(adress);
+		std::getline(file_name, result.Ficheiro_Clientes);
+		std::getline(file_name, result.Ficheiro_Pacotes);
+		return result;
+	}
+	else
+	{
+		cerr << "Agency file invalid";
+		return result;
+	}
+}
+
+vector<Client> read_client(string file_name)
+{
+	vector <Client> res;
+	Client result;
+	ifstream file;
+	file.open(file_name);
+	if (file.is_open())
+	{
+		while (true)
+		{
+			string nif;
+			string n_people;
+			string adress;
+			string identifiers;
+			std::getline(file, result.Nome);
+			std::getline(file, nif);
+			result.NIF = stoi(nif);
+			std::getline(file, n_people);
+			result.Agregado_Familiar = stoi(n_people);
+			std::getline(file, adress);
+			result.Morada_Cliente = adress_spliter(adress);
+			std::getline(file, identifiers);
+			result.Pacotes_turisticos_adquiridos = identifier_splitter(identifiers);
+			if (file.eof())
+			{
+				res.push_back(result);
+				break;
+			}
+			else
+			{
+				string separator;
+				std::getline(file, separator);
+				res.push_back(result);
+			}
+		}
+	}
+	else
+		cout << "Client name invalid" << endl;
+
+	return res;
+}
+
+vector<TravelPack> read_pack(string file_name)
+{
+	vector <TravelPack> Packs;
+	TravelPack result;
+	ifstream file;
+	file.open(file_name);
+	string control;
+	std::getline(file, control);
+	if (file.is_open())
+	{
+		while (true)
+		{
+			string identifier;
+			string available;
+			string date_beg;
+			string date_end;
+			string price;
+			string total;
+			string remain;
+			std::getline(file, identifier);
+			result.Identificador = stoi(identifier);
+			std::getline(file, result.Destinos);
+			std::getline(file, date_beg);
+			result.Data_partida = date_spliter(date_beg);
+			std::getline(file, date_end);
+			result.Data_chegada = date_spliter(date_end);
+			std::getline(file, price);
+			result.Preco = stoi(price);
+			std::getline(file, total);
+			result.Max_vendas = stoi(total);
+			std::getline(file, remain);
+			result.Restantes = stoi(remain);
+			if (result.Identificador == stoi(control))
+			{
+				Packs.push_back(result);
+				break;
+			}
+			else
+			{
+				string separator;
+				std::getline(file, separator);
+				Packs.push_back(result);
+			}
+		}
+	}
+	else
+		cout << "Client name invalid" << endl;
+
+	return Packs;
+}
+
+vector<Client>clients = read_client(read_agency().Ficheiro_Clientes);
+
+vector<TravelPack>packs = read_pack(read_agency().Ficheiro_Pacotes);
+
+void UpdateFileClients()
+{
+	ofstream file;
+	file.open(read_agency().Ficheiro_Clientes);
+	if (file.is_open())
+	{
+		for (Client x : clients)
+		{
+			file << x.Nome << endl;
+			file << x.NIF << endl;
+			file << x.Agregado_Familiar << endl;
+			file << adress_compiler(x.Morada_Cliente) << endl;
+			file << packs_compiler(x.Pacotes_turisticos_adquiridos);
+			if (x.Nome != clients.back().Nome)
+				file << endl << "::::::::::" << endl;
+		}
+	}
+	else
+		cerr << "Error file" << endl;
+	file.close();
+}
+
+void UpdateFilePacks()
+{
+	int size;
+	ofstream file;
+	file.open(read_agency().Ficheiro_Pacotes);
+	if (file.is_open())
+	{
+		size = packs.size();
+		file << packs.at(size -1).Identificador << endl;
+		for (TravelPack x : packs)
+		{
+			file << x.Identificador << endl;
+			file << x.Destinos << endl;
+			file << date_compiler(x.Data_partida) << endl;
+			file << date_compiler(x.Data_chegada) << endl;
+			file << x.Preco << endl;
+			file << x.Max_vendas << endl;
+			file << x.Restantes;
+			if (x.Identificador != packs.back().Identificador)
+				file << endl << "::::::::::" << endl;
+		}
+	}
+	file.close();
+} 
+
+void show_packs(TravelPack a)
+{
+	OUT("Identifier: ");
+	COUT(a.Identificador);
+	OUT("Destinations: ")
+	COUT(a.Destinos);
+	OUT("Departure: ");
+	COUT(date_compiler(a.Data_partida));
+	OUT("Arrival: ");
+	COUT(date_compiler(a.Data_chegada));
+	OUT("Price: ");
+	COUT(a.Preco);
+	OUT("Initially Available Seats: ");
+	COUT(a.Max_vendas);
+	OUT("Sold seats: ");
+	COUT(a.Restantes)
+
+}
+
+void show_client(Client a)
+{
+	OUT("Name: ");
+	COUT(a.Nome);
+	OUT("NIF: ");
+	COUT(a.NIF);
+	OUT("Household: ");
+	COUT(a.Agregado_Familiar);
+	OUT("Adress: ");
+	COUT(adress_compiler(a.Morada_Cliente));
+	OUT("Travel Packs: ");
+	COUT(packs_compiler(a.Pacotes_turisticos_adquiridos));
+
+}
+
+string create_adress()
+{
+	string res;
+	string rua;
+	string door;
+	string floor;
+	string ZIP;
+	string city;
+	cin.ignore();
+	OUT("Street: "); 
+	std::getline(cin, rua);  
+	res += rua + " / ";
+	OUT("Door number: "); 
+	cin >> door; 
+	res += door + " / ";
+	OUT("Floor(put - if not applicable): "); 
+	cin >> floor; 
+	res += floor + " / ";
+	OUT("ZIPCODE: "); 
+	cin >> ZIP; 
+	res += ZIP + " / ";
+	cin.ignore();
+	OUT("City: "); 
+	std::getline(cin,city); 
+	res += city;
+	return res;
+}
+
+Client create_client()
+{
+	vector <Client> res;
+	Client result;
+	string name;
+	string pacotes;
+	cin.ignore();
+	OUT("Name: "); 
+	std::getline(cin,name);
+	result.Nome = name;
+	int nif; 
+	OUT("Nif: "); 
+	cin >> nif; 
+	result.NIF = nif;
+	int n_people; 
+	OUT("Household: "); 
+	cin >> n_people; 
+	result.Agregado_Familiar = n_people;
+	COUT("Adress");
+	result.Morada_Cliente = adress_spliter(create_adress());
+	OUT("Packages separated by ;  :");
+	std::getline(cin, pacotes);
+	result.Pacotes_turisticos_adquiridos = identifier_splitter(pacotes);
+	res.push_back(result);
+
+	return result;
+}
+
+string create_date()
+{
+	string res;
+	string year;
+	string month;
+	string day;
+	OUT("Year: "); 
+	cin >> year; 
+	res += year + "/";
+	OUT("Month: "); 
+	cin >> month; 
+	res += month + "/";
+	OUT("Day: "); 
+	cin >> day; 
+	res += day;
+	return res;
+}
+
+TravelPack create_pack()
+{
+	vector <TravelPack> res;
+	TravelPack result;
+	int identificador;
+	OUT("Identifier: ");
+	cin >> identificador;
+	result.Identificador = identificador;
+	string destino;
+	OUT("Destinations:  ");
+	cin.ignore();
+	getline(cin, destino);
+	result.Destinos = destino;
+	OUT("Departure: ");
+	result.Data_partida = date_spliter(create_date());
+	OUT("Arrival: ");
+	result.Data_chegada = date_spliter(create_date());
+	int price;
+	OUT("Price: ");
+	cin >> price;
+	result.Preco = price;
+	int total_lugares;
+	OUT("Initially Available Seats: ");
+	cin >> total_lugares;
+	result.Max_vendas = total_lugares;
+	int vendidos;
+	OUT("Sold seats: ");
+	cin >> vendidos;
+	result.Restantes = vendidos;
+
+	res.push_back(result);
+	return result;
+}
+
+Address edit_adress(string s)
+{
+	string delimiter = "/";
+	vector<string> data;
+	size_t pos = 0;
+	string token;
+	while ((pos = s.find(delimiter)) != string::npos)
+	{
+		token = s.substr(0, pos);
+
+		data.push_back(token);
+		s.erase(0, pos + delimiter.length());
+	}
+	data.push_back(s);
+	Address result = { data[0], data[1], data[2], data[3], data[4] };
+
+	int option;
+	string rua;
+	string door;
+	string floor;
+	string ZIP;
+	string city;
+	cin.ignore();
+	COUT("0) Back");
+	COUT("1) Street");
+	COUT("2) Door Number");
+	COUT("3) Floor");
+	COUT("4) ZIPCODE");
+	COUT("5) City");
+	OUT("Option: ");
+	cin >> option;
+	switch (option)
+	{
+	case 0:
+		break;
+	case 1:
+		cin.ignore();
+		OUT("Street: ");
+		getline(cin, rua);
+		result.Rua = rua;
+		break;
+	case 2:
+		OUT("Door number: ");
+		cin >> door;
+		result.Numero_Porta = door;
+		break;
+	case 3:
+		OUT("Floor: ");
+		cin >> floor;
+		result.Andar = floor;
+		break;
+	case 4:
+		OUT("ZIPCODE: ");
+		cin >> ZIP;
+		result.ZIPCode = ZIP;
+		break;
+	case 5:
+		cin.ignore();
+		OUT("City: ");
+		getline(cin, city);
+		result.Localidade = city;
+		break;
+	}
+	return result;
+}
+
+void edit_client(Client b, int c)
+{
+	clients.erase(clients.begin() + c);
+	int option;
+	string name;
+	string nif;
+	string household;
+	string pacotes;
+	COUT("0) Name");
+	COUT("1) Nif");
+	COUT("2) Household");
+	COUT("3) Adress");
+	COUT("4) Packs");
+	COUT("5) EXIT and Save");
+	OUT(" Option:  ");
+	cin >> option;
+
+	switch (option)
+	{
+	case 0:
+		cin.ignore();
+		OUT("Name: ");
+		std::getline(cin, name);
+		b.Nome = name;
+		break;
+	case 1:
+		OUT("NIF: ");
+		cin >> nif;
+		b.NIF = stoi(nif);
+		break;
+	case 2:
+		OUT("Household: ");
+		cin >> household;
+		b.Agregado_Familiar = stoi(household);
+		break;
+	case 3:
+		COUT("Adress: ");
+		b.Morada_Cliente = edit_adress(adress_compiler(b.Morada_Cliente));
+		break;
+	case 4:
+		OUT("Packages separated by ;  :");
+		std::getline(cin, pacotes);
+		b.Pacotes_turisticos_adquiridos = identifier_splitter(pacotes);
+	case 5:
+		break;
+	}
+	clients.push_back(b);
+}
+
+void edit_pack(TravelPack b, int c)
+{
+	packs.erase(packs.begin() + c);
+	int option;
+	int identificador;
+	string destinos;
+	int preco;
+	int max_vendas;
+	int vendidos;
+	COUT("0) Identifier");
+	COUT("1) Destination");
+	COUT("2) Departure");
+	COUT("3) Arrival");
+	COUT("4) Price");
+	COUT("5) Initially Available Seats");
+	COUT("6) Sold seats");
+	COUT("7) Back and exit");
+	OUT(" Option:  ");
+	cin >> option;
+
+	switch (option)
+	{
+	case 0:
+		OUT("Identifier: ");
+		cin >> identificador;
+		b.Identificador = identificador;
+		break;
+	case 1:
+		OUT("Destination: ");
+		cin.ignore();
+		getline(cin, destinos);
+		b.Destinos = destinos;
+		break;
+	case 2:
+		OUT("Departure: ");
+		b.Data_partida = date_spliter(create_date());
+		break;
+	case 3:
+		OUT("Arrival: ");
+		b.Data_chegada = date_spliter(create_date());
+		break;
+	case 4:
+		OUT("Price: ");
+		cin >> preco;
+		b.Preco = preco;
+		break;
+	case 5:
+		OUT("Initially Available Seats: ");
+		cin >> max_vendas;
+		b.Max_vendas = max_vendas;
+		break;
+	case 6:
+		OUT("Sold seats: ");
+		cin >> vendidos;
+		b.Restantes = vendidos;
+		break;
+	case 7:
+		break;
+	}
+
+	packs.push_back(b);
+}
+
+void manage_packs()
+{
+	int option;
+	COUT("Packs:  ");
+	for (int i = 0; i < packs.size(); i++)
+	{
+		OUT(i); OUT(") ");
+		COUT(packs.at(i).Destinos);
+	}
+	COUT(" 3)  Remove");
+	COUT(" 2)  Edit");
+	COUT(" 1)  Add");
+	COUT(" 0)  Back");
+	cin >> option;
+	COUT("");
+
+	switch (option)
+	{
+	case 0:
+		UpdateFilePacks();
+		break;
+	case 1:
+		packs.push_back(create_pack());
+		UpdateFilePacks();
+		COUT("");
+		manage_packs();
+		break;
+	case 2:
+		COUT("");
+		OUT("Choose Pack: ");
+		cin >> option;
+		edit_pack(packs.at(option), option);
+		UpdateFilePacks;
+		manage_packs();
+		break;
+	case 3:
+		OUT("Choose Pack: ");
+		cin >> option;
+		packs.erase(packs.begin() + option);
+		UpdateFilePacks();
+		COUT("");
+		manage_packs();
+		break;
+	}
+
+}
+
+int date_dias(Date a)
+{
+	int res;
+	res = 0;
+	res += a.Ano * 365;
+	res += a.Mes * 31;
+	res += a.Dia;
+
+	return res;
+}
+
+void showpacksdate()
+{
+	Date partida;
+	Date chegada;
+	int a;
+	int b;
+	int control;
+	control = 0;
+	string partida_string;
+	string chegada_string;
+	int partida_dias;
+	int chegada_dias;
+	COUT("Between: ");
+	COUT("Departure: ");
+	partida = date_spliter(create_date());
+	COUT("Arrival: ");
+	chegada = date_spliter(create_date());
+	partida_dias = date_dias(partida);
+	chegada_dias = date_dias(chegada);
+	COUT("");
+	for (TravelPack x : packs)
+	{
+		a = date_dias(x.Data_partida);
+		b = date_dias(x.Data_chegada);
+		if (partida_dias >= a && chegada_dias <= b)
+		{
+			show_packs(x);
+			control += 1;
+		}
+	}
+	if (control == 0)
+		COUT("No packs available in that dates!");
+}
+
+void showpacks_date_destino(string a)
+{
+	int control = 0;
+	for (TravelPack x : packs)
+	{
+		if (x.Destinos == a)
+			control += 1;
+	}
+	if (control == 0)
+		COUT("No travelpacks available for that destination!");
+	if (control != 0)
+		showpacksdate();
+}
+
+void search_pack()
+{
+	int option;
+	COUT("0) Shearch by destination");
+	COUT("1) Search by date");
+	COUT("2) Search by date and destination");
+	COUT("3) Search packs sold to a client");
+	COUT("4) Search packs solds");
+	COUT("5) Back");
+	OUT("Option: ");
+	cin >> option;
+	COUT("");
+	switch (option)
+	{
+	case 5:
+		break;
+	case 4:
+		for (Client x : clients)
+		{
+			COUT(x.Nome);
+			for (int i : x.Pacotes_turisticos_adquiridos)
+			{
+				for (TravelPack k : packs)
+				{
+					if (i == k.Identificador)
+					{
+						show_packs(k);
+					}
+				}
+				COUT("");
+			}
+		}
+		break;
+	case 3:
+		int option;
+		COUT("Clients:  ");
+		for (int i = 0; i < clients.size(); i++)
+		{
+			OUT(i);
+			OUT(") ");
+			COUT(clients.at(i).Nome);
+		}
+		COUT("");
+		OUT(" Option:  ");
+		cin >> option;
+		COUT("");
+		OUT("Client: ");
+		COUT(clients.at(option).Nome);
+		for (int i : clients.at(option).Pacotes_turisticos_adquiridos)
+		{
+			for (TravelPack k : packs)
+			{
+				if (i == k.Identificador)
+				{
+					show_packs(k);
+					COUT("");
+				}
+			}
+		}
+		break;
+	case 0:
+		COUT("Packs:  ");
+		for (int i = 0; i < packs.size(); i++)
+		{
+			OUT(i); OUT(") ");
+			COUT(packs.at(i).Destinos);
+		}
+		COUT("Option:  ");
+		cin >> option;
+		COUT("");
+		show_packs(packs.at(option));
+		break;
+	case 1:
+		showpacksdate();
+		break;
+	case 2:
+		string destino;
+		COUT("Destination: ");
+		cin.ignore();
+		getline(cin, destino);
+		showpacks_date_destino(destino);
+		break;
+	}
+
+}
+
+void pack_menu()
+{
+	int option;
+
+	COUT("<<_____Packs_____>>");
+	COUT(" 4  Buy a pack");
+	COUT(" 3  Visualize All");
+	COUT(" 2  Search Pack");
+	COUT(" 1  Manage Pack");
+	COUT(" 0  Back");
+	OUT(" Option:  ");
+	cin >> option;
+	COUT("");
+
+	switch (option)
+	{
+	case 0:
+		break;
+	case 1:
+		manage_packs();
+		break;
+	case 2:
+		search_pack();
+		pack_menu;
+		break;
+	case 3:
+		for (int i = 0; i < packs.size(); i++)
+		{
+			if (i == packs.size() - 1)
+				show_packs(packs.at(i));
+			else
+			{
+				show_packs(packs.at(i));
+				COUT("::::::::::");
+			}
+		}
+		pack_menu();
+		break;
+	case 4:
+		int iden;
+		int option;
+		int index = 0;
+		COUT("Clients:")
+			for (int i = 0; i < clients.size(); i++)
+			{
+				OUT(i); OUT(") ");
+				COUT(clients.at(i).Nome);
+			}
+		COUT("Option: ");
+		cin >> option;
+		COUT("");
+		show_client(clients.at(option));
+		COUT("");
+		COUT("Packs")
+		for (TravelPack x : packs)
+		{
+			show_packs(x);
+			COUT("");
+		}
+		COUT("Choose pack (identifier): ");
+		cin >> iden;
+		if (iden < 0)
+			COUT("Pack is full");
+		for (TravelPack x : packs)
+		{
+			index += 1;
+			if (x.Identificador == iden)
+			{
+				if ((clients.at(option).Agregado_Familiar + x.Restantes) > x.Max_vendas)
+				{
+					COUT("No seats avaiable for entire household");
+					break;
+				}
+				if ((clients.at(option).Agregado_Familiar + x.Restantes) < x.Max_vendas)
+				{
+					packs.erase(packs.begin() + index-1);
+					clients.at(option).Pacotes_turisticos_adquiridos.push_back(iden);
+					x.Restantes += clients.at(option).Agregado_Familiar;
+					packs.push_back(x);
+					UpdateFileClients();
+					UpdateFilePacks();
+					COUT("Pack successfully bought!");
+					break;
+				}
+				if ((clients.at(option).Agregado_Familiar + x.Restantes) == x.Max_vendas)
+				{
+					packs.erase(packs.begin() + index-1);
+					x.Identificador = (x.Identificador * -1);
+					clients.at(option).Pacotes_turisticos_adquiridos.push_back(iden);
+					x.Restantes += clients.at(option).Agregado_Familiar;
+					packs.push_back(x);
+					UpdateFileClients();
+					UpdateFilePacks();
+					COUT("Pack successfully bought!");
+					break;
+				}
+			}
+		}
+		break;
+	}
+}
+
+void manage_clients_menu()
+{
+	int option;
+	COUT("Clients:  ");
+	for (int i = 0; i < clients.size(); i++)
+	{
+		OUT(i); 
+		OUT(") ");
+		COUT(clients.at(i).Nome);
+	}
+	COUT("");
+	COUT("<<Manage_clients>>")
+	COUT(" 3 Remove");
+	COUT(" 2 Edit");
+	COUT(" 1 Add");
+	COUT(" 0 EXIT and SAVE");
+	OUT(" Option:  ");
+	cin >> option;
+	OUT("");
+
+	switch (option)
+	{
+	case 0:
+		break;
+	case 1:
+		clients.push_back(create_client());
+		UpdateFileClients();
+		break;
+	case 2:
+		COUT("");
+		OUT("Choose Client: ");
+		cin >> option;
+		edit_client(clients.at(option), option);
+		UpdateFileClients();
+		manage_clients_menu();
+		break;
+	case 3:
+		OUT("Choose Client: ");
+		cin >> option;
+		clients.erase(clients.begin() + option);
+		UpdateFileClients();
+		manage_clients_menu();
+		break;
+	}
+}
+
+void clients_menu()
+{
+	int option;
+
+	COUT("\n <<____Clients____>>");
+	COUT(" 3 Visualize All");
+	COUT(" 2 Search_Client");
+	COUT(" 1 Manage_Client");
+	COUT(" 0 Exit");
+	COUT("<<__________________>>");
+	OUT(" Option:  ");
+	cin >> option;
+	COUT("");
+
+	switch (option)
+	{
+	case 0:
+		break;
+	case 1:
+		manage_clients_menu();
+		break;
+	case 2:
+		COUT("Clients:  ");
+		for (int i = 0; i < clients.size(); i++)
+		{
+			OUT(i); OUT(") ");
+			COUT(clients.at(i).Nome);
+		}
+		COUT("Option:  ");
+		cin >> option;
+		COUT("");
+		show_client(clients.at(option));
+		COUT("");
+
+		clients_menu();
+		break;
+	case 3:
+		COUT("<<_____________________>>");
+		COUT("Clients:")
+		for (int i = 0; i < clients.size(); i++)
+		{
+			if (i == clients.size() - 1)
+				show_client(clients.at(i));
+			else
+			{
+				show_client(clients.at(i));
+				COUT("::::::::::");
+			}
+		}
+		COUT("");
+		COUT("<<_____________________>>");
+		COUT(" 1) Manage_clients")
+		COUT(" 0) Back");
+		COUT("<<__________________>>");
+		OUT(" Option:  ");
+		cin >> option;
+		COUT("");
+		switch (option)
+		{
+		case 0:
+			clients_menu();
+			break;
+		case 1:
+			manage_clients_menu();
+			break;
+		}
+	}
+}
+
+void agency_menu()
+{
+	int total = 0;
+	int custo = 0;
+
+	for (int i = 0; i < packs.size(); i++)
+	{
+		total += packs.at(i).Restantes;
+		custo += (packs.at(i).Restantes) * (packs.at(i).Preco);
+	}
+	cout << "<<" << read_agency().Nome << ">>" << endl;
+	OUT("Total of sells: ");
+	COUT(total);
+	OUT("Value of sells: ");
+	COUT(custo);
+}
+
+void main_menu()
+{
+	int option;
+	cout << "<<" << read_agency().Nome << ">>" << endl;
+	COUT("  3  Agency");
+	COUT("  2  Clients");
+	COUT("  1  Packs");
+	COUT("  0  EXIT");
+	OUT("  Option:  ");
+	cin >> option;
+	COUT("");
+	switch (option)
+	{
+	case 0:
+		break;
+	case 1:
+		pack_menu();
+		break;
+	case 2:
+		clients_menu();
+		break;
+	case 3:
+		agency_menu();
+		break;
+
+	}
+}
+
+int main() 
+{
+	main_menu();
+
+	return 0;
+}
